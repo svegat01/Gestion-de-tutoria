@@ -1,0 +1,2471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Tutoría - I.E.S. Pérez Comendador</title>
+    <!-- Librería PDF.js para procesar los PDF localmente -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Librería Dexie.js para la gestión de IndexedDB -->
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <!-- Librería Chart.js para análisis de datos y gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-body: #f3f4f6;
+            --bg-card: #ffffff;
+            --primary: #00875a;
+            --primary-hover: #006b47;    
+            --purple: #8b5cf6;
+            --purple-hover: #7c3aed;
+            --green: #22c55e;
+            --green-hover: #16a34a;
+            --red: #ef4444;
+            --idoceo: #0284c7;
+            --idoceo-hover: #0369a1;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+
+            --junta-green: #00875a;
+            --acta-logo-text: #15803d;       
+            --acta-section-title: #4d7c0f;
+            --acta-th-main: #b4d7a8;
+            --acta-th-sub: #d9ead3;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 320px;
+            background-color: #ffffff;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-logo {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .sidebar-header-text h1 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+
+        .sidebar-header-text p {
+            margin: 2px 0 0 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .nav-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .tab-btn {
+            background-color: #e5e7eb;
+            border: none;
+            padding: 8px 4px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #374151;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+
+        .selector-group label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .selector-group select {
+            width: 100%;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: #ffffff;
+            font-size: 13px;
+        }
+
+        .btn-add-student {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .btn-add-student:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .student-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .student-card {
+            background: #f9fafb;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .student-card.active {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 1px #93c5fd;
+        }
+
+        .student-avatar {
+            width: 40px;
+            height: 48px;
+            border-radius: 4px;
+            object-fit: cover;
+            background-color: #e5e7eb;
+            border: 1px solid #d1d5db;
+            flex-shrink: 0;
+        }
+
+        .student-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .student-card .name {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 2px;
+            color: #111827;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .student-card .badges {
+            font-size: 11px;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .sidebar-footer strong {
+            color: var(--text-main);
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .tab-content {
+            display: none;
+            max-width: 950px;
+            margin: 0 auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-header-flex h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            color: #111827;
+        }
+
+        .student-header-profile {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .big-avatar {
+            width: 75px;
+            height: 90px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #e5e7eb;
+        }
+
+        .form-grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 13px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 70px;
+        }
+
+        /* BUTTONS */
+        .btn-purple {
+            background-color: var(--purple);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-purple:hover { background-color: var(--purple-hover); }
+
+        .btn-idoceo {
+            background-color: var(--idoceo);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-idoceo:hover { background-color: var(--idoceo-hover); }
+
+        .btn-green {
+            background-color: var(--green);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-green:hover { background-color: var(--green-hover); }
+
+        .btn-red {
+            background-color: var(--red);
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-full {
+            width: 100%;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        /* ACTA Y DOCUMENTOS ESTILOS */
+        .acta-paper {
+            background: white;
+            border: 1px solid #d1d5db;
+            padding: 30px;
+            border-radius: 4px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .editable-paper[contenteditable="true"] {
+            outline: 2px dashed #93c5fd;
+            padding: 25px;
+        }
+
+        .editable-paper[contenteditable="true"]:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        .acta-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .acta-logo-img {
+            max-height: 75px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .acta-logo-text {
+            font-weight: 900;
+            color: var(--acta-logo-text);
+            font-size: 18px;
+            line-height: 1.1;
+        }
+
+        .junta-box {
+            background-color: var(--junta-green);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .acta-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 800;
+            margin: 20px 0;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .acta-section-title {
+            color: var(--acta-section-title);
+            font-weight: 700;
+            font-size: 13px;
+            margin: 18px 0 8px 0;
+            text-transform: uppercase;
+        }
+
+        table.acta-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        table.acta-table th, table.acta-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+        }
+
+        table.acta-table th.th-main {
+            background-color: var(--acta-th-main);
+            color: black;
+            font-weight: bold;
+        }
+
+        table.acta-table th.th-sub {
+            background-color: var(--acta-th-sub);
+            color: black;
+            font-weight: bold;
+        }
+
+        .acta-signatures-single {
+            margin-top: 40px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            page-break-inside: avoid;
+        }
+
+        .sig-line-single {
+            margin-top: 45px;
+            width: 260px;
+            border-bottom: 1px solid #000;
+            margin-bottom: 8px;
+        }
+
+        .editable-sig-input {
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            background: #f9fafb;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .acad-item {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .session-item {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--primary);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        @media print {
+            .sidebar, .no-print { display: none !important; }
+            body { background: white; }
+            .main-content { padding: 0; }
+            .acta-paper { border: none; box-shadow: none; padding: 0; outline: none !important; }
+            .editable-sig-input { background: transparent !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="https://lh3.googleusercontent.com/d/1xR4JzM_3429mXlv85a_EUth5PENzGN9H" alt="Logo" class="sidebar-logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'50\' height=\'50\' viewBox=\'0 0 24 24\' fill=\'%2300875a\'><path d=\'M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM3.82 9L12 4.54 20.18 9 12 13.46 3.82 9zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z\'/></svg>'">
+            <div class="sidebar-header-text">
+                <h1>I.E.S. Pérez Comendador</h1>
+                <p>Gestión de Tutoría</p>
+            </div>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('alumnos', event)">Alumnos</button>
+            <button class="tab-btn" onclick="switchTab('agenda', event)">📅 Agenda</button>
+            <button class="tab-btn" onclick="switchTab('resumen', event)">📊 Resumen</button>
+            <button class="tab-btn" onclick="switchTab('acta', event)">Acta Oficial</button>
+            <button class="tab-btn" onclick="switchTab('informe', event)">📄 Informe Global</button>
+            <button class="tab-btn" onclick="switchTab('cursos', event)">⚙️ Cursos</button>
+        </div>
+
+        <div class="selector-group">
+            <label>GRUPO / CURSO ACTUAL:</label>
+            <select id="groupSelect" onchange="changeGroup()">
+                <!-- Opciones dinámicas -->
+            </select>
+        </div>
+
+        <button class="btn-add-student" onclick="addStudent()">+ Añadir Alumno Manualmente</button>
+
+        <div class="student-list" id="studentList">
+            <!-- Renderizado dinámico -->
+        </div>
+
+        <div class="sidebar-footer">
+            Desarrollado por <strong>Sergio Vega</strong>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <!-- TAB ALUMNOS -->
+        <div id="tab-alumnos" class="tab-content active">
+            <div class="card-header-flex">
+                <div class="student-header-profile">
+                    <img id="stuPhoto" src="" class="big-avatar" alt="Foto Alumno" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 24 24\' fill=\'%239ca3af\'><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>'">
+                    <div>
+                        <h2 id="currentStudentTitle">Cargando...</h2>
+                        <span id="stuExpNum" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Exp: -</span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-purple" onclick="copyStudentPrompt()">📋 Copiar Prompt Alumno</button>
+                    <button class="btn-red" onclick="deleteStudent()">🗑️</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">DATOS DEL ALUMNO/A (APELLIDOS, NOMBRE)</div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label>APELLIDOS, NOMBRE:</label>
+                    <input type="text" id="stuName" oninput="updateStudentData()" placeholder="Ej: Perez Garcia, Maria">
+                </div>
+                <div class="form-grid-3">
+                    <div class="form-group">
+                        <label>BILINGÜE:</label>
+                        <select id="stuBilingue" onchange="updateStudentData()">
+                            <option value="No (🇪🇸)">No (🇪🇸)</option>
+                            <option value="Sí (🇬🇧)">Sí (🇬🇧)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>OPTATIVA:</label>
+                        <select id="stuOptativa" onchange="updateStudentData()">
+                            <option value="Francés (🇫🇷)">Francés (🇫🇷)</option>
+                            <option value="Portugués (🇵🇹)">Portugués (🇵🇹)</option>
+                            <option value="Refuerzo sociolingüístico (📚)">Refuerzo sociolingüístico (📚)</option>
+                            <option value="Refuerzo científico tecnológico (🔬)">Refuerzo científico tecnológico (🔬)</option>
+                            <option value="Digitalización básica (💻)">Digitalización básica (💻)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>NECESIDADES / NEAE:</label>
+                        <textarea id="stuNEAE" oninput="updateStudentData()" placeholder="TDAH (⚡)..."></textarea>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>OBSERVACIONES GENERALES DEL TUTOR:</label>
+                    <textarea id="stuObs" oninput="updateStudentData()"></textarea>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📈 Seguimiento Académico y Calificaciones por Trimestre</div>
+                <div class="form-grid-3">
+                    <div class="form-group">
+                        <label>EVALUACIÓN:</label>
+                        <select id="acadEval">
+                            <option value="Evaluación 0">Evaluación 0</option>
+                            <option value="1ª Evaluación">1ª Evaluación</option>
+                            <option value="2ª Evaluación">2ª Evaluación</option>
+                            <option value="3ª Evaluación">3ª Evaluación</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nº DE SUSPENSOS:</label>
+                        <input type="number" id="acadSuspensos" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>ASIGNATURAS SUSPENSAS / DETALLE:</label>
+                        <input type="text" id="acadAsignaturas" placeholder="Ej: Matemáticas, Lengua...">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label>VALORACIÓN / COMENTARIO DEL TRIMESTRE:</label>
+                    <textarea id="acadObs" placeholder="Evolución del rendimiento, actitud en los exámenes..."></textarea>
+                </div>
+                <button class="btn-green btn-full" onclick="addAcademicRecord()">+ Guardar / Actualizar Calificación Trimestral</button>
+
+                <div style="margin-top: 16px;">
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Evolución del Trimestre (Editable):</label>
+                    <div id="academicHistoryList" style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Registrar Incidencia / Entrevista / Compromiso</div>
+                <div class="form-grid-3">
+                    <div class="form-group">
+                        <label>EVALUACIÓN:</label>
+                        <select id="incEval">
+                            <option value="Evaluación 0">Evaluación 0</option>
+                            <option value="1ª Evaluación">1ª Evaluación</option>
+                            <option value="2ª Evaluación">2ª Evaluación</option>
+                            <option value="3ª Evaluación">3ª Evaluación</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>TIPO:</label>
+                        <select id="incTipo">
+                            <option>Llamada Familia</option>
+                            <option>Reunión Presencial</option>
+                            <option>Apercibimiento Conducta</option>
+                            <option>Compromiso Pedagógico</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>DETALLE DEL ACUERDO / NOTA:</label>
+                        <input type="text" id="incNote" placeholder="Resumen de lo acordado...">
+                    </div>
+                </div>
+                <button class="btn-add-student btn-full" onclick="addIncidence()">Guardar Anotación</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Historial de Tutoría y Entrevistas</div>
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+
+        <!-- TAB AGENDA / PLANIFICADOR DE SESIONES -->
+        <div id="tab-agenda" class="tab-content">
+            <div class="card">
+                <div class="card-title" id="sessFormTitle">📅 Planificador de Sesiones de Tutoría</div>
+                <div class="form-grid-3">
+                    <div class="form-group">
+                        <label>FECHA:</label>
+                        <input type="date" id="sessDate">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>TÍTULO DE LA SESIÓN:</label>
+                        <input type="text" id="sessTitle" placeholder="Ej: Sesión 1 - Elección de Delegado y Normas de Convivencia">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label>ORDEN DEL DÍA / CONTENIDOS / ACUERDOS:</label>
+                    <textarea id="sessDesc" placeholder="Detalle de los contenidos a trabajar en la sesión o acuerdos tomados con el grupo..."></textarea>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-green btn-full" id="btnSaveSession" onclick="addSession()">+ Guardar Sesión de Tutoría</button>
+                    <button class="btn-red" id="btnCancelEditSess" style="display: none;" onclick="cancelSessionEdit()">Cancelar</button>
+                </div>
+
+                <!-- EXPORTACIÓN A PDF E IMPORTACIÓN DE PLANNER -->
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border-color); display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-purple" style="flex: 1;" onclick="exportPlannerPDF()">📄 Exportar Planner (PDF)</button>
+                    <label class="btn-idoceo" style="flex: 1; cursor: pointer; margin: 0;">
+                        📂 Cargar Sesiones desde PDF / JSON
+                        <input type="file" id="plannerFileInput" accept=".pdf,.json" onchange="importPlannerFile(event)" style="display: none;">
+                    </label>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title" id="sessionListTitle">Sesiones Registradas</div>
+                <div id="sessionList" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+        </div>
+
+        <!-- TAB RESUMEN Y ANÁLISIS DE GRUPO -->
+        <div id="tab-resumen" class="tab-content">
+            <div class="card">
+                <div class="card-title" style="font-size: 20px;">📊 Resumen y Análisis Global del Grupo</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                    Análisis estadístico del rendimiento global, gráficos de evolución trimestral e importación automática de notas desde Actillas.
+                </p>
+
+                <!-- TARJETAS DE MÉTRICAS -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 11px; font-weight: bold; color: #15803d; text-transform: uppercase;">Total Alumnos/as</div>
+                        <div id="resumenTotalAlumnos" style="font-size: 26px; font-weight: 800; color: #166534; margin-top: 4px;">0</div>
+                    </div>
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 14px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 11px; font-weight: bold; color: #1d4ed8; text-transform: uppercase;">% Aprobados (Eval. Sel)</div>
+                        <div id="resumenPctAprob" style="font-size: 26px; font-weight: 800; color: #1e40af; margin-top: 4px;">0%</div>
+                    </div>
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 14px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 11px; font-weight: bold; color: #b91c1c; text-transform: uppercase;">Media Suspensos / Alumno</div>
+                        <div id="resumenMediaSuspensos" style="font-size: 26px; font-weight: 800; color: #991b1b; margin-top: 4px;">0.0</div>
+                    </div>
+                </div>
+
+                <!-- CARGA DIRECTA DE ACTILLA DE NOTAS (PDF) -->
+                <div style="background: #faf5ff; border: 2px dashed var(--purple); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="font-weight: bold; color: var(--purple); font-size: 14px; margin-bottom: 4px;">📑 Subir Actilla de Evaluación en PDF (Rayuela)</div>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                        Selecciona el archivo PDF de la <b>Actilla de Evaluación</b> de Rayuela. Extraerá las notas y el sumatorio exacto de suspensos (<code>Nº Susp.</code>) asignándolos automáticamente a cada alumno/a.
+                    </p>
+                    <input type="file" accept=".pdf" onchange="importActillaPDF(event)" style="font-size: 13px; width: 100%;">
+                    <div id="actillaStatus" style="font-size: 12px; font-weight: bold; margin-top: 8px; color: var(--purple);"></div>
+                </div>
+
+                <!-- FILTRO DE EVALUACIÓN PARA LOS GRÁFICOS -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; background: #f3f4f6; padding: 10px 14px; border-radius: 8px; flex-wrap: wrap; gap: 8px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main);">EVALUACIÓN DESTACADA EN GRÁFICOS:</label>
+                    <select id="resumenEvalFilter" onchange="renderResumenCharts()" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color); font-weight: bold;">
+                        <option value="1ª Evaluación">1ª Evaluación</option>
+                        <option value="2ª Evaluación">2ª Evaluación</option>
+                        <option value="3ª Evaluación">3ª Evaluación</option>
+                        <option value="Evaluación 0">Evaluación 0</option>
+                    </select>
+                </div>
+
+                <!-- GRÁFICOS INTERACTIVOS -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; height: 320px;">
+                        <canvas id="chartEvolucionCanvas"></canvas>
+                    </div>
+                    <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; height: 320px;">
+                        <canvas id="chartDistribucionCanvas"></canvas>
+                    </div>
+                </div>
+
+                <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; height: 350px; margin-bottom: 20px;">
+                    <canvas id="chartAlumnosCanvas"></canvas>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="btn-purple btn-full" onclick="copyGroupPrompt()">📋 Copiar Prompt del Grupo Completo</button>
+                    <button class="btn-idoceo btn-full" onclick="exportiDoceoXLS()">📊 Exportar XLS para iDoceo (Crear Grupo)</button>
+                    <button class="btn-green btn-full" onclick="exportGroupCSV()">📁 Exportar Datos del Grupo a CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB ACTA OFICIAL -->
+        <div id="tab-acta" class="tab-content">
+            <div class="card-header-flex no-print">
+                <h2 style="font-size: 18px;">Acta de Sesión de Evaluación Oficial</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-purple" onclick="syncActaData()">📝 Cargar Datos de Alumnos</button>
+                    <button class="btn-add-student" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+                </div>
+            </div>
+
+            <div class="acta-paper">
+                <div class="acta-header">
+                    <img src="https://lh3.googleusercontent.com/d/1xR4JzM_3429mXlv85a_EUth5PENzGN9H" alt="Logo I.E.S. Pérez Comendador" class="acta-logo-img" onerror="this.outerHTML='<div class=\'acta-logo-text\'>I.E.S. PÉREZ<br>COMENDADOR<br><span style=\'font-size: 10px; font-weight: normal; color: #555;\'>Plasencia</span></div>'">
+                    <div class="junta-box">JUNTA DE EXTREMADURA<br><span style="font-size: 9px; font-weight: normal;">Consejería de Educación, Ciencia y Formación Profesional</span></div>
+                </div>
+
+                <div class="acta-title" id="actaMainTitle">ACTA DE SESIÓN DE EVALUACIÓN 0</div>
+
+                <div class="acta-section-title">DATOS DE LA SESIÓN:</div>
+                <table class="acta-table">
+                    <tr>
+                        <td style="width: 30%;"><strong>Evaluación:</strong></td>
+                        <td>
+                            <select id="actaEvalSelect" onchange="updateActaTitle()" style="border:none; width:100%; font-weight:bold;">
+                                <option value="EVALUACIÓN 0">EVALUACIÓN 0</option>
+                                <option value="1ª EVALUACIÓN">1ª EVALUACIÓN</option>
+                                <option value="2ª EVALUACIÓN">2ª EVALUACIÓN</option>
+                                <option value="3ª EVALUACIÓN">3ª EVALUACIÓN</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr><td><strong>Grupo:</strong></td><td><span id="actaGrupoText">1º ESO B</span></td></tr>
+                    <tr><td><strong>Fecha:</strong></td><td><input type="text" value="17/12/2025" style="border:none; width:100%;"></td></tr>
+                    <tr><td><strong>Hora:</strong></td><td><input type="text" value="16:15 h" style="border:none; width:100%;"></td></tr>
+                    <tr><td><strong>Lugar:</strong></td><td><input type="text" value="BIBLIOTECA del I.E.S PÉREZ COMENDADOR" style="border:none; width:100%;"></td></tr>
+                    <tr><td><strong>Tutor/a:</strong></td><td><input type="text" id="actaTutorInput" value="SERGIO VEGA TALAVÁN" oninput="syncTutorFromTable(this.value)" style="border:none; width:100%; font-weight:bold;"></td></tr>
+                    <tr><td><strong>Docentes ausentes:</strong></td><td><textarea style="width:100%; border:none;">Ninguno.</textarea></td></tr>
+                </table>
+
+                <div class="acta-section-title">1. INFORMACIÓN GENERAL DEL GRUPO.</div>
+                <textarea style="width:100%; border:1px solid #ccc; padding:6px; font-size:12px; min-height:50px;">Grupo heterogéneo con buen nivel de adaptación general.</textarea>
+
+                <div class="acta-section-title">2. RENDIMIENTO ACADÉMICO.</div>
+                <div style="font-size: 11px; margin-bottom: 4px;"><strong>Resultados académicos globales.</strong></div>
+                <table class="acta-table">
+                    <thead>
+                        <tr><th class="th-main">Resumen de resultados</th><th class="th-main" style="text-align:center;">Nº estudiantes</th><th class="th-main" style="text-align:center;">Porcentaje</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Estudiantes que aprueban todas las materias/módulos</td><td style="text-align:center;"><input type="number" id="actaAprob" value="0" onchange="calcActaStats()" style="width:50px; text-align:center;"></td><td style="text-align:center;" id="pctAprob">0%</td></tr>
+                        <tr><td>Estudiantes con 1 materia/módulo suspenso</td><td style="text-align:center;"><input type="number" id="actaSusp1" value="0" onchange="calcActaStats()" style="width:50px; text-align:center;"></td><td style="text-align:center;" id="pctSusp1">0%</td></tr>
+                        <tr><td>Estudiantes con 2 materias/módulos suspensos</td><td style="text-align:center;"><input type="number" id="actaSusp2" value="0" onchange="calcActaStats()" style="width:50px; text-align:center;"></td><td style="text-align:center;" id="pctSusp2">0%</td></tr>
+                        <tr><td>Estudiantes con 3 materias/módulos suspensos</td><td style="text-align:center;"><input type="number" id="actaSusp3" value="0" onchange="calcActaStats()" style="width:50px; text-align:center;"></td><td style="text-align:center;" id="pctSusp3">0%</td></tr>
+                        <tr><td>Estudiantes con más de 3 materias/módulos suspensos</td><td style="text-align:center;"><input type="number" id="actaSuspMas" value="0" onchange="calcActaStats()" style="width:50px; text-align:center;"></td><td style="text-align:center;" id="pctSuspMas">0%</td></tr>
+                        <tr style="font-weight:bold; background:#f3f4f6;"><td>Total:</td><td style="text-align:center;" id="actaTotal">0</td><td style="text-align:center;">100%</td></tr>
+                    </tbody>
+                </table>
+
+                <div style="font-size: 11px; margin: 10px 0 4px 0;"><strong>Clima de trabajo.</strong></div>
+                <textarea style="width:100%; border:1px solid #ccc; padding:6px; font-size:12px; min-height:40px;">Clima de trabajo adecuado y participativo en la mayoría de las asignaturas.</textarea>
+
+                <div class="acta-section-title">3. CONVIVENCIA ESCOLAR.</div>
+                <table class="acta-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2" class="th-main" style="text-align:center;">Datos relacionados con la convivencia escolar del grupo</th>
+                        </tr>
+                        <tr>
+                            <th class="th-sub" style="text-align:center; width:50%;">Nº de conductas contrarias<br>(apercibimientos)</th>
+                            <th class="th-sub" style="text-align:center; width:50%;">Nº de conductas gravemente perjudiciales<br>(informes de conducta)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="text-align:center;"><input type="number" value="0" style="width:50px; text-align:center;"></td>
+                            <td style="text-align:center;"><input type="number" value="0" style="width:50px; text-align:center;"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="acta-section-title">4. DECISIONES Y ACUERDOS ADOPTADOS.</div>
+                <div style="font-size: 11px; margin-bottom: 2px;"><strong>Con relación al grupo, en general.</strong></div>
+                <textarea style="width:100%; border:1px solid #ccc; padding:6px; font-size:12px; min-height:40px;">Mantener coordinación entre el equipo docente para el seguimiento de tareas.</textarea>
+
+                <div style="font-size: 11px; margin: 8px 0 2px 0;"><strong>Con relación a estudiantes concretos.</strong></div>
+                <textarea style="width:100%; border:1px solid #ccc; padding:6px; font-size:12px; min-height:40px;"></textarea>
+
+                <div class="acta-signatures-single">
+                    <p style="margin-bottom: 0;">
+                        <input type="text" id="actaTutorCargo" class="editable-sig-input" value="El tutor/a:" style="font-weight: bold; width: 180px;">
+                    </p>
+                    <div class="sig-line-single"></div>
+                    <p style="margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        <span>Fdo.:</span>
+                        <input type="text" id="actaTutorNameInput" class="editable-sig-input" value="SERGIO VEGA TALAVÁN" oninput="syncTutorFromSig(this.value)" style="width: 250px; text-align: left;">
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB INFORME GLOBAL -->
+        <div id="tab-informe" class="tab-content">
+            <div class="card-header-flex no-print">
+                <h2 style="font-size: 18px;">Informe Global de Tutoría (Memoria Anual)</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-purple" onclick="renderGlobalReport()">🔄 Recargar Informe</button>
+                    <button class="btn-add-student" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+                </div>
+            </div>
+
+            <div style="background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 6px; padding: 10px; font-size: 12px; color: #0369a1; margin-bottom: 12px;" class="no-print">
+                💡 <b>Edición habilitada:</b> Puedes hacer clic e introducir o modificar directamente cualquier texto en la vista previa del informe antes de imprimirlo.
+            </div>
+
+            <div class="acta-paper editable-paper" id="reportPaper" contenteditable="true" spellcheck="false">
+                <!-- Generado dinámicamente -->
+            </div>
+        </div>
+
+        <!-- TAB CURSOS -->
+        <div id="tab-cursos" class="tab-content">
+            <!-- EXTRACTOR AUTOMÁTICO DE RAYUELA PDF COMPLETO CON FOTOS -->
+            <div class="card" style="border: 2px solid var(--primary); background: #f0fdf4;">
+                <div class="card-title" style="color: var(--primary);">📄 Importar Listas de Clase con Foto (PDF Rayuela)</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    Selecciona el archivo PDF exportado de Rayuela (<i>"Listas de clase por grupos con foto"</i>). Escaneará dinámicamente **todos** los alumnos con sus fotos en formato <b>Apellidos, Nombre</b>.
+                </p>
+                <input type="file" id="rayuelaPdfFile" accept=".pdf" onchange="importRayuelaPDF(event)" style="font-size: 13px; width: 100%;">
+                <div id="pdfStatus" style="font-size: 12px; font-weight: bold; margin-top: 8px; color: var(--primary);"></div>
+            </div>
+
+            <!-- IMPORTADOR DE ACTILLAS DE NOTAS PDF -->
+            <div class="card" style="border: 2px solid var(--purple); background: #faf5ff;">
+                <div class="card-title" style="color: var(--purple);">📑 Importar Actilla de Calificaciones (PDF Rayuela)</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    Carga el archivo PDF de la <b>Actilla de Evaluación</b> de Rayuela. Extraerá las notas por materia y el número de suspensos asociándolos directamente a cada alumno/a.
+                </p>
+                <input type="file" accept=".pdf" onchange="importActillaPDF(event)" style="font-size: 13px; width: 100%;">
+                <div id="actillaStatusCursos" style="font-size: 12px; font-weight: bold; margin-top: 8px; color: var(--purple);"></div>
+            </div>
+
+            <!-- EXPORTACIÓN A IDOCEO (EXCEL XLS) -->
+            <div class="card" style="border: 2px solid var(--idoceo); background: #f0f9ff;">
+                <div class="card-title" style="color: var(--idoceo);">📊 Exportación XLS para iDoceo</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    Genera un archivo Excel <b>.XLS</b> formateado específicamente con dos columnas (<b>Apellidos</b> y <b>Nombre</b>) para crear el grupo en iDoceo de forma rápida.
+                </p>
+                <button class="btn-idoceo btn-full" onclick="exportiDoceoXLS()">📊 Descargar XLS para iDoceo</button>
+            </div>
+
+            <!-- GESTIÓN Y EDICIÓN DE CURSOS Y GRUPOS -->
+            <div class="card">
+                <div class="card-title">🏛️ Gestión de Cursos y Grupos</div>
+                
+                <div class="form-group" style="margin-bottom: 16px; background: #fafafa; padding: 12px; border-radius: 8px; border: 1px dashed var(--purple);">
+                    <label style="color: var(--purple);">✏️ RENOMBRAR GRUPO ACTUAL:</label>
+                    <div style="display: flex; gap: 8px; margin-top: 4px;">
+                        <input type="text" id="renameGroupName" placeholder="Escribe el nuevo nombre..." style="flex: 1;">
+                        <button class="btn-purple" onclick="renameCurrentGroup()">✏️ Cambiar Nombre</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label>CREAR NUEVO GRUPO:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="newGroupName" placeholder="Ej: 2º ESO A" style="flex: 1;">
+                        <button class="btn-green" onclick="createNewGroup()">+ Crear</button>
+                    </div>
+                </div>
+                
+                <button class="btn-red btn-full" onclick="deleteCurrentGroup()">🏛️ Eliminar Grupo Seleccionado</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">💾 Copia de Seguridad Local (JSON Offline)</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Todos los datos se guardan exclusivamente en el almacenamiento interno de tu navegador/iPad (IndexedDB).</p>
+                <button class="btn-green btn-full" onclick="exportJSON()" style="margin-bottom: 12px;">💾 Descargar Copia de Seguridad</button>
+                <div class="form-group">
+                    <label>RESTAURAR COPIA DESDE ARCHIVOS:</label>
+                    <input type="file" accept=".json" onchange="importJSON(event)">
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // INICIALIZACIÓN DE INDEXEDDB CON DEXIE.JS
+        const db = new Dexie("TutoriaPWA_DB");
+        db.version(1).stores({
+            appState: 'id'
+        });
+
+        let state = {
+            currentGroup: "1º ESO B",
+            groups: ["1º ESO B"],
+            activeStudentId: 1,
+            students: [],
+            sessions: [],
+            editingSessionId: null
+        };
+
+        // Instancias de Chart.js
+        let chartEvolucion = null;
+        let chartDistribucion = null;
+        let chartAlumnos = null;
+
+        window.onload = async function() {
+            await enablePersistentStorage();
+
+            try {
+                const savedState = await db.appState.get('tutoria_state_v10');
+                if (savedState && savedState.data) {
+                    state = savedState.data;
+                }
+            } catch (e) {
+                console.error("Error al cargar datos desde IndexedDB:", e);
+            }
+
+            if(!state.groups || state.groups.length === 0) {
+                state.groups = ["1º ESO B"];
+                state.currentGroup = "1º ESO B";
+            }
+            if(!state.sessions) {
+                state.sessions = [];
+            }
+
+            renderGroupSelector();
+            renderStudentsList();
+            loadStudentData();
+            renderSessions();
+            calcActaStats();
+            updateActaTitle();
+            renderResumenCharts();
+        };
+
+        // ALMACENAMIENTO PERSISTENTE MEDIANTE CÓDIGO
+        async function enablePersistentStorage() {
+            if (navigator.storage && navigator.storage.persist) {
+                const isPersisted = await navigator.storage.persisted();
+                if (!isPersisted) {
+                    const granted = await navigator.storage.persist();
+                    console.log(`Almacenamiento persistente concedido: ${granted}`);
+                } else {
+                    console.log("El almacenamiento ya cuenta con permiso de persistencia.");
+                }
+            }
+        }
+
+        // GUARDADO EN INDEXEDDB USANDO DEXIE.JS
+        async function saveData() {
+            try {
+                await db.appState.put({ id: 'tutoria_state_v10', data: state });
+            } catch (e) {
+                console.error("Error al guardar en IndexedDB:", e);
+            }
+        }
+
+        function switchTab(tabId, evt) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            const btnToActivate = evt ? evt.target : document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+            if (btnToActivate) btnToActivate.classList.add('active');
+
+            document.getElementById('tab-' + tabId).classList.add('active');
+
+            if (tabId === 'acta') {
+                calcActaStats();
+                updateActaTitle();
+            } else if (tabId === 'agenda') {
+                renderSessions();
+            } else if (tabId === 'informe') {
+                renderGlobalReport();
+            } else if (tabId === 'resumen') {
+                renderResumenCharts();
+            }
+        }
+
+        function renderGroupSelector() {
+            const sel = document.getElementById('groupSelect');
+            sel.innerHTML = '';
+            state.groups.forEach(g => {
+                sel.innerHTML += `<option value="${g}" ${g === state.currentGroup ? 'selected' : ''}>${g}</option>`;
+            });
+            document.getElementById('actaGrupoText').innerText = state.currentGroup;
+            document.getElementById('renameGroupName').value = state.currentGroup;
+        }
+
+        function changeGroup() {
+            state.currentGroup = document.getElementById('groupSelect').value;
+            document.getElementById('actaGrupoText').innerText = state.currentGroup;
+            document.getElementById('renameGroupName').value = state.currentGroup;
+            
+            const firstStu = state.students.find(s => s.group === state.currentGroup);
+            if(firstStu) state.activeStudentId = firstStu.id;
+            
+            renderStudentsList();
+            loadStudentData();
+            renderSessions();
+            calcActaStats();
+            renderResumenCharts();
+            saveData();
+        }
+
+        function renameCurrentGroup() {
+            const newName = document.getElementById('renameGroupName').value.trim();
+            if(!newName) return alert("Por favor, introduce un nuevo nombre para el grupo.");
+            if(newName === state.currentGroup) return alert("El nombre especificado es idéntico al actual.");
+            if(state.groups.includes(newName)) return alert("Ya existe otro grupo registrado con ese nombre.");
+
+            const oldName = state.currentGroup;
+
+            const groupIdx = state.groups.indexOf(oldName);
+            if(groupIdx !== -1) {
+                state.groups[groupIdx] = newName;
+            }
+
+            state.currentGroup = newName;
+
+            state.students.forEach(s => {
+                if(s.group === oldName) {
+                    s.group = newName;
+                }
+            });
+
+            if(state.sessions) {
+                state.sessions.forEach(sess => {
+                    if(sess.group === oldName) sess.group = newName;
+                });
+            }
+
+            saveData();
+            renderGroupSelector();
+            renderStudentsList();
+            renderSessions();
+            renderResumenCharts();
+            alert(`✅ Nombre cambiado de "${oldName}" a "${newName}" con éxito.`);
+        }
+
+        function renderStudentsList() {
+            const list = document.getElementById('studentList');
+            list.innerHTML = '';
+            
+            const groupStudents = state.students.filter(s => s.group === state.currentGroup);
+            
+            if(groupStudents.length === 0) {
+                list.innerHTML = `<div style="padding: 10px; font-size: 12px; color: #6b7280; text-align: center;">No hay alumnos en este grupo. Importa la lista o actilla en "⚙️ Cursos" o "📊 Resumen".</div>`;
+                return;
+            }
+
+            groupStudents.forEach(stu => {
+                let badges = '🇪🇸 ';
+                if(stu.bilingue && stu.bilingue.includes('Sí')) badges = '🇬🇧 ';
+                
+                if(stu.optativa) {
+                    if(stu.optativa.includes('Portugués')) badges += '🇵🇹 ';
+                    else if(stu.optativa.includes('Francés')) badges += '🇫🇷 ';
+                    else if(stu.optativa.includes('sociolingüístico')) badges += '📚 ';
+                    else if(stu.optativa.includes('científico')) badges += '🔬 ';
+                    else if(stu.optativa.includes('Digitalización')) badges += '💻 ';
+                }
+
+                if(stu.neae && stu.neae.trim() !== '') badges += '🧩 ';
+                if(stu.history && stu.history.length > 0) badges += '⚠️ ';
+                if(stu.academicProgress && stu.academicProgress.length > 0) badges += '📊 ';
+
+                const isActive = stu.id === state.activeStudentId ? 'active' : '';
+                const photoSrc = stu.photo || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 24 24\' fill=\'%239ca3af\'><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>';
+
+                list.innerHTML += `
+                    <div class="student-card ${isActive}" onclick="selectStudent('${stu.id}')">
+                        <img src="${photoSrc}" class="student-avatar" alt="Foto">
+                        <div class="student-info">
+                            <div class="name">${stu.name}</div>
+                            <div class="badges">${badges}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function selectStudent(id) {
+            state.activeStudentId = id;
+            renderStudentsList();
+            loadStudentData();
+            switchTab('alumnos');
+        }
+
+        function loadStudentData() {
+            const stu = state.students.find(s => String(s.id) === String(state.activeStudentId));
+            if(!stu) {
+                document.getElementById('currentStudentTitle').innerText = "Seleccione un alumno";
+                document.getElementById('stuExpNum').innerText = "";
+                document.getElementById('stuPhoto').src = "";
+                return;
+            }
+
+            document.getElementById('currentStudentTitle').innerText = stu.name;
+            document.getElementById('stuExpNum').innerText = stu.exp ? `Nº Exp: ${stu.exp}` : '';
+            document.getElementById('stuName').value = stu.name;
+            document.getElementById('stuBilingue').value = stu.bilingue || "No (🇪🇸)";
+            document.getElementById('stuOptativa').value = stu.optativa || "Francés (🇫🇷)";
+            document.getElementById('stuNEAE').value = stu.neae || '';
+            document.getElementById('stuObs').value = stu.observaciones || '';
+            document.getElementById('stuPhoto').src = stu.photo || '';
+
+            renderAcademicProgress(stu);
+            renderHistory(stu);
+        }
+
+        function updateStudentData() {
+            const stu = state.students.find(s => String(s.id) === String(state.activeStudentId));
+            if(!stu) return;
+
+            stu.name = document.getElementById('stuName').value;
+            stu.bilingue = document.getElementById('stuBilingue').value;
+            stu.optativa = document.getElementById('stuOptativa').value;
+            stu.neae = document.getElementById('stuNEAE').value;
+            stu.observaciones = document.getElementById('stuObs').value;
+
+            document.getElementById('currentStudentTitle').innerText = stu.name;
+            renderStudentsList();
+            saveData();
+        }
+
+        function updateActaTitle() {
+            const sel = document.getElementById('actaEvalSelect');
+            if (sel) {
+                const evalVal = sel.value;
+                document.getElementById('actaMainTitle').innerText = `ACTA DE SESIÓN DE ${evalVal}`;
+            }
+        }
+
+        /* EXTRAER NOTAS Y SUSPENSOS DE ACTILLA PDF DE RAYUELA */
+        async function importActillaPDF(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const status1 = document.getElementById('actillaStatus');
+            const status2 = document.getElementById('actillaStatusCursos');
+            const setStatus = (msg) => {
+                if (status1) status1.innerText = msg;
+                if (status2) status2.innerText = msg;
+            };
+
+            setStatus("⏳ Procesando Actilla de Evaluación PDF...");
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                let detectedEval = "1ª Evaluación";
+                let fullRawText = "";
+                let pageRows = [];
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(i => i.str).join(" ");
+                    fullRawText += pageText + " ";
+
+                    let items = textContent.items.filter(i => i.str.trim().length > 0);
+                    
+                    // Agrupar elementos por posición Y (misma fila horizontal)
+                    let clusters = [];
+                    items.forEach(item => {
+                        let y = Math.round(item.transform[5]);
+                        let x = Math.round(item.transform[4]);
+                        let existing = clusters.find(c => Math.abs(c.y - y) <= 6);
+                        if (existing) {
+                            existing.items.push({ text: item.str.trim(), x: x });
+                        } else {
+                            clusters.push({ y: y, items: [{ text: item.str.trim(), x: x }] });
+                        }
+                    });
+
+                    clusters.sort((a,b) => b.y - a.y); // De arriba a abajo
+                    clusters.forEach(c => {
+                        c.items.sort((a,b) => a.x - b.x); // De izquierda a derecha
+                        pageRows.push(c);
+                    });
+                }
+
+                // Detectar Evaluación
+                if (/3ª\s*EVALUA/i.test(fullRawText)) detectedEval = "3ª Evaluación";
+                else if (/2ª\s*EVALUA/i.test(fullRawText)) detectedEval = "2ª Evaluación";
+                else if (/1ª\s*EVALUA/i.test(fullRawText)) detectedEval = "1ª Evaluación";
+                else if (/EVALUA[CICIÓNÓ]*\s*0/i.test(fullRawText)) detectedEval = "Evaluación 0";
+
+                const gradeRegex = /^(SB|NT|BI|SU|IN)(\([A-Z0-9*]+\))?$/i;
+                let extractedRecords = [];
+                let subjectsList = [];
+
+                pageRows.forEach(row => {
+                    const rowStr = row.items.map(i => i.text).join(" ");
+                    
+                    if (rowStr.includes("Nº Susp") || rowStr.includes("Susp.")) {
+                        subjectsList = row.items.map(i => i.text).filter(t => !/Nº|Susp|Alumnado/i.test(t));
+                    }
+
+                    if (rowStr.includes(",")) {
+                        let nameParts = [];
+                        let gradeItems = [];
+                        let suspCount = null;
+
+                        row.items.forEach(it => {
+                            let txt = it.text;
+                            if (gradeRegex.test(txt)) {
+                                gradeItems.push(txt);
+                            } else if (/^\d+$/.test(txt) && txt.length <= 2) {
+                                suspCount = parseInt(txt, 10);
+                            } else if (!/ACTILLA|EVALUACIÓN|CURSO|Pág|Ref|Centro|Junta|Leyenda|AÑO/i.test(txt)) {
+                                nameParts.push(txt);
+                            }
+                        });
+
+                        let fullName = nameParts.join(" ").trim().replace(/^\d+\s*/, '');
+
+                        if (fullName && fullName.includes(",") && (gradeItems.length > 0 || suspCount !== null)) {
+                            let calculatedFails = gradeItems.filter(g => /^IN/i.test(g)).length;
+                            if (suspCount === null) suspCount = calculatedFails;
+
+                            let failedSubjects = [];
+                            gradeItems.forEach((g, idx) => {
+                                if (/^IN/i.test(g)) {
+                                    failedSubjects.push(subjectsList[idx] || `Asig ${idx+1}`);
+                                }
+                            });
+
+                            extractedRecords.push({
+                                name: fullName,
+                                eval: detectedEval,
+                                suspensos: suspCount,
+                                asignaturas: failedSubjects.length > 0 ? failedSubjects.join(", ") : (suspCount === 0 ? "Ninguna" : "Varias"),
+                                grades: gradeItems
+                            });
+                        }
+                    }
+                });
+
+                if (extractedRecords.length > 0) {
+                    let targetGroup = state.currentGroup;
+
+                    let updatedCount = 0;
+                    let addedCount = 0;
+
+                    extractedRecords.forEach(rec => {
+                        let student = state.students.find(s => 
+                            s.group === targetGroup && 
+                            normalizeName(s.name) === normalizeName(rec.name)
+                        );
+
+                        if (!student) {
+                            student = state.students.find(s => 
+                                s.group === targetGroup && 
+                                (s.name.toLowerCase().includes(rec.name.toLowerCase().split(',')[0]) ||
+                                 rec.name.toLowerCase().includes(s.name.toLowerCase().split(',')[0]))
+                            );
+                        }
+
+                        if (!student) {
+                            student = {
+                                id: Date.now() + Math.random(),
+                                group: targetGroup,
+                                name: rec.name,
+                                exp: '',
+                                photo: '',
+                                bilingue: "No (🇪🇸)",
+                                optativa: "Francés (🇫🇷)",
+                                neae: "",
+                                observaciones: "",
+                                academicProgress: [],
+                                history: []
+                            };
+                            state.students.push(student);
+                            addedCount++;
+                        } else {
+                            updatedCount++;
+                        }
+
+                        if (!student.academicProgress) student.academicProgress = [];
+
+                        let existingIdx = student.academicProgress.findIndex(a => a.eval === rec.eval);
+                        let recordObj = {
+                            id: Date.now() + Math.random(),
+                            eval: rec.eval,
+                            suspensos: rec.suspensos,
+                            asignaturas: rec.asignaturas,
+                            obs: `Importado de Actilla Rayuela (${rec.eval})`,
+                            grades: rec.grades || []
+                        };
+
+                        if (existingIdx >= 0) {
+                            student.academicProgress[existingIdx] = recordObj;
+                        } else {
+                            student.academicProgress.push(recordObj);
+                        }
+                    });
+
+                    renderGroupSelector();
+                    renderStudentsList();
+                    if (state.students.length > 0) loadStudentData();
+                    calcActaStats();
+                    renderResumenCharts();
+                    saveData();
+
+                    setStatus(`✅ Actilla de ${detectedEval} importada (${updatedCount} actualizados, ${addedCount} añadidos).`);
+                    alert(`✅ Actilla de ${detectedEval} importada con éxito para el grupo ${targetGroup}.\n- Alumnos actualizados: ${updatedCount}\n- Alumnos nuevos añadidos: ${addedCount}`);
+                } else {
+                    setStatus("⚠️ No se identificaron filas de calificaciones en el PDF.");
+                    alert("No se pudieron extraer las notas. Asegúrate de subir el PDF oficial de Actilla de Evaluación de Rayuela.");
+                }
+
+            } catch(err) {
+                console.error("Error al importar actilla:", err);
+                setStatus("❌ Error al procesar la Actilla PDF.");
+                alert("Error al procesar la Actilla PDF: " + err.message);
+            }
+        }
+
+        function normalizeName(str) {
+            if (!str) return '';
+            return str.toLowerCase()
+                      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                      .replace(/[^a-z0-9]/g, "");
+        }
+
+        /* ANÁLISIS GLOBAL Y GRÁFICOS INTERACTIVOS (CHART.JS) */
+        function renderResumenCharts() {
+            const groupStudents = state.students.filter(s => s.group === state.currentGroup);
+            
+            document.getElementById('resumenTotalAlumnos').innerText = groupStudents.length;
+
+            const evals = ["Evaluación 0", "1ª Evaluación", "2ª Evaluación", "3ª Evaluación"];
+            
+            const evalData = evals.map(evName => {
+                let aprob = 0, susp12 = 0, suspMas2 = 0, totalSusp = 0, count = 0;
+                groupStudents.forEach(stu => {
+                    if (stu.academicProgress) {
+                        const rec = stu.academicProgress.find(a => a.eval === evName);
+                        if (rec) {
+                            count++;
+                            const s = rec.suspensos || 0;
+                            totalSusp += s;
+                            if (s === 0) aprob++;
+                            else if (s <= 2) susp12++;
+                            else suspMas2++;
+                        }
+                    }
+                });
+                return {
+                    eval: evName,
+                    aprob: aprob,
+                    susp12: susp12,
+                    suspMas2: suspMas2,
+                    avgSusp: count > 0 ? (totalSusp / count).toFixed(1) : "0.0",
+                    recordedCount: count
+                };
+            });
+
+            let selectedEval = document.getElementById('resumenEvalFilter').value || "1ª Evaluación";
+            let activeEvalObj = evalData.find(d => d.eval === selectedEval) || evalData[1];
+
+            let pctAprobText = "0%";
+            if (groupStudents.length > 0) {
+                pctAprobText = Math.round((activeEvalObj.aprob / groupStudents.length) * 100) + "%";
+            }
+            document.getElementById('resumenPctAprob').innerText = pctAprobText;
+            document.getElementById('resumenMediaSuspensos').innerText = activeEvalObj.avgSusp;
+
+            // Destruir gráficos anteriores si existen
+            if (chartEvolucion) chartEvolucion.destroy();
+            if (chartDistribucion) chartDistribucion.destroy();
+            if (chartAlumnos) chartAlumnos.destroy();
+
+            // Gráfico 1: Evolución por Trimestre (Barras Apiladas)
+            const ctxEvol = document.getElementById('chartEvolucionCanvas');
+            if (ctxEvol) {
+                chartEvolucion = new Chart(ctxEvol, {
+                    type: 'bar',
+                    data: {
+                        labels: evals,
+                        datasets: [
+                            { label: 'Todo Aprobado (0 susp.)', data: evalData.map(d => d.aprob), backgroundColor: '#22c55e' },
+                            { label: '1 - 2 Suspensos', data: evalData.map(d => d.susp12), backgroundColor: '#f59e0b' },
+                            { label: 'Más de 2 Suspensos', data: evalData.map(d => d.suspMas2), backgroundColor: '#ef4444' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'Evolución del Rendimiento del Grupo por Trimestre', font: { size: 13, weight: 'bold' } }
+                        },
+                        scales: {
+                            x: { stacked: true },
+                            y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                        }
+                    }
+                });
+            }
+
+            // Gráfico 2: Distribución (Donut)
+            const ctxDist = document.getElementById('chartDistribucionCanvas');
+            if (ctxDist) {
+                chartDistribucion = new Chart(ctxDist, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Todo Aprobado', '1-2 Suspensos', '> 2 Suspensos'],
+                        datasets: [{
+                            data: [activeEvalObj.aprob, activeEvalObj.susp12, activeEvalObj.suspMas2],
+                            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: `Distribución de Resultados (${selectedEval})`, font: { size: 13, weight: 'bold' } }
+                        }
+                    }
+                });
+            }
+
+            // Gráfico 3: Suspensos por Alumno (Barras Horizontales)
+            const studentNames = [];
+            const studentFails = [];
+            
+            groupStudents.forEach(stu => {
+                let fails = 0;
+                if (stu.academicProgress) {
+                    const rec = stu.academicProgress.find(a => a.eval === selectedEval);
+                    if (rec) fails = rec.suspensos || 0;
+                }
+                studentNames.push(stu.name);
+                studentFails.push(fails);
+            });
+
+            const ctxStus = document.getElementById('chartAlumnosCanvas');
+            if (ctxStus) {
+                chartAlumnos = new Chart(ctxStus, {
+                    type: 'bar',
+                    data: {
+                        labels: studentNames,
+                        datasets: [{
+                            label: `Nº Suspensos (${selectedEval})`,
+                            data: studentFails,
+                            backgroundColor: studentFails.map(f => f === 0 ? '#22c55e' : (f <= 2 ? '#f59e0b' : '#ef4444'))
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: `Detalle de Suspensos por Alumno/a (${selectedEval})`, font: { size: 13, weight: 'bold' } }
+                        },
+                        scales: {
+                            x: { beginAtZero: true, ticks: { stepSize: 1 } }
+                        }
+                    }
+                });
+            }
+        }
+
+        /* AGENDA, EDICIÓN Y EXPORTACIÓN DE PLANNER */
+        function addSession() {
+            const date = document.getElementById('sessDate').value;
+            const title = document.getElementById('sessTitle').value.trim();
+            const desc = document.getElementById('sessDesc').value.trim();
+
+            if(!title) return alert("Por favor, introduce el título de la sesión.");
+
+            if(!state.sessions) state.sessions = [];
+
+            if (state.editingSessionId) {
+                const sess = state.sessions.find(s => s.id === state.editingSessionId);
+                if (sess) {
+                    sess.date = date || new Date().toISOString().split('T')[0];
+                    sess.title = title;
+                    sess.desc = desc;
+                }
+                state.editingSessionId = null;
+                document.getElementById('btnSaveSession').innerText = "+ Guardar Sesión de Tutoría";
+                document.getElementById('sessFormTitle').innerText = "📅 Planificador de Sesiones de Tutoría";
+                document.getElementById('btnCancelEditSess').style.display = "none";
+            } else {
+                state.sessions.push({
+                    id: Date.now(),
+                    group: state.currentGroup,
+                    date: date || new Date().toISOString().split('T')[0],
+                    title: title,
+                    desc: desc
+                });
+            }
+
+            document.getElementById('sessDate').value = '';
+            document.getElementById('sessTitle').value = '';
+            document.getElementById('sessDesc').value = '';
+            
+            renderSessions();
+            saveData();
+        }
+
+        function editSession(id) {
+            const sess = state.sessions.find(s => s.id === id);
+            if (!sess) return;
+
+            document.getElementById('sessDate').value = sess.date || '';
+            document.getElementById('sessTitle').value = sess.title || '';
+            document.getElementById('sessDesc').value = sess.desc || '';
+
+            state.editingSessionId = id;
+            document.getElementById('btnSaveSession').innerText = "💾 Guardar Cambios de la Sesión";
+            document.getElementById('sessFormTitle').innerText = "✏️ Modificar Sesión de Tutoría";
+            document.getElementById('btnCancelEditSess').style.display = "inline-block";
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelSessionEdit() {
+            state.editingSessionId = null;
+            document.getElementById('sessDate').value = '';
+            document.getElementById('sessTitle').value = '';
+            document.getElementById('sessDesc').value = '';
+            document.getElementById('btnSaveSession').innerText = "+ Guardar Sesión de Tutoría";
+            document.getElementById('sessFormTitle').innerText = "📅 Planificador de Sesiones de Tutoría";
+            document.getElementById('btnCancelEditSess').style.display = "none";
+        }
+
+        function exportPlannerPDF() {
+            const groupSessions = (state.sessions || []).filter(s => s.group === state.currentGroup);
+            if(groupSessions.length === 0) return alert("No hay sesiones en este grupo para exportar.");
+
+            groupSessions.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            let rowsHtml = '';
+            groupSessions.forEach(s => {
+                const dateFmt = s.date ? new Date(s.date).toLocaleDateString() : 'Sin fecha';
+                rowsHtml += `
+                    <tr>
+                        <td style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 15%;">${dateFmt}</td>
+                        <td style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 35%;">${s.title}</td>
+                        <td style="border: 1px solid #000; padding: 8px; white-space: pre-line;">${s.desc || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            const printWin = window.open('', '_blank');
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Planner de Sesiones - ${state.currentGroup}</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 25px; color: #111827; }
+                        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00875a; padding-bottom: 12px; margin-bottom: 20px; }
+                        h1 { font-size: 18px; margin: 0; color: #00875a; text-transform: uppercase; }
+                        h2 { font-size: 13px; margin: 4px 0 0 0; color: #4b5563; }
+                        table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+                        th { border: 1px solid #000; background-color: #b4d7a8; padding: 8px; text-align: left; text-transform: uppercase; }
+                        td { vertical-align: top; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div>
+                            <h1>Planificador de Sesiones de Tutoría</h1>
+                            <h2>I.E.S. Pérez Comendador | Grupo: ${state.currentGroup}</h2>
+                        </div>
+                        <div style="font-size: 11px; text-align: right; color: #6b7280;">
+                            Fecha de emisión: ${new Date().toLocaleDateString()}
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Título de la Sesión</th>
+                                <th>Orden del Día / Acuerdos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            printWin.document.write(htmlContent);
+            printWin.document.close();
+        }
+
+        async function importPlannerFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.type === "application/json" || file.name.endsWith('.json')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (Array.isArray(imported)) {
+                            if(!state.sessions) state.sessions = [];
+                            imported.forEach(sess => {
+                                sess.id = Date.now() + Math.random();
+                                sess.group = state.currentGroup;
+                                state.sessions.push(sess);
+                            });
+                            saveData();
+                            renderSessions();
+                            alert(`✅ ${imported.length} sesiones cargadas correctamente.`);
+                        }
+                    } catch(err) {
+                        alert("Error al procesar el archivo de sesiones JSON.");
+                    }
+                };
+                reader.readAsText(file);
+            } else if (file.type === "application/pdf" || file.name.endsWith('.pdf')) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    let fullText = "";
+
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        const pageText = textContent.items.map(i => i.str).join(" ");
+                        fullText += pageText + "\n";
+                    }
+
+                    if (!state.sessions) state.sessions = [];
+                    state.sessions.push({
+                        id: Date.now(),
+                        group: state.currentGroup,
+                        date: new Date().toISOString().split('T')[0],
+                        title: `Importado: ${file.name.replace('.pdf', '')}`,
+                        desc: fullText.trim()
+                    });
+
+                    saveData();
+                    renderSessions();
+                    alert(`✅ Documento PDF importado como sesión para ${state.currentGroup}.`);
+                } catch(err) {
+                    alert("Error al extraer el texto del archivo PDF.");
+                }
+            }
+        }
+
+        function renderSessions() {
+            const container = document.getElementById('sessionList');
+            if(!container) return;
+            container.innerHTML = '';
+
+            const groupSessions = (state.sessions || []).filter(s => s.group === state.currentGroup);
+            document.getElementById('sessionListTitle').innerText = `Sesiones Registradas (${state.currentGroup}) - Total: ${groupSessions.length}`;
+
+            if(groupSessions.length === 0) {
+                container.innerHTML = '<div style="font-size: 12px; color: var(--text-muted);">No hay sesiones de tutoría planificadas para este grupo.</div>';
+                return;
+            }
+
+            groupSessions.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            groupSessions.forEach(sess => {
+                const dateFmt = sess.date ? new Date(sess.date).toLocaleDateString() : 'Sin fecha';
+                container.innerHTML += `
+                    <div class="session-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <strong style="font-size: 14px; color: var(--primary);">${sess.title}</strong>
+                            <span style="font-size: 11px; background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-weight: bold;">📅 ${dateFmt}</span>
+                        </div>
+                        <div style="font-size: 12px; color: #374151; white-space: pre-line;">${sess.desc || 'Sin detalles especificados.'}</div>
+                        <div style="margin-top: 8px; display: flex; gap: 12px;">
+                            <button style="font-size: 11px; color: var(--purple); background: none; border: none; cursor: pointer; padding: 0; font-weight: bold;" onclick="editSession(${sess.id})">✏️ Modificar Sesión</button>
+                            <button style="font-size: 11px; color: var(--red); background: none; border: none; cursor: pointer; padding: 0;" onclick="deleteSession(${sess.id})">🗑️ Eliminar</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function deleteSession(id) {
+            if(!confirm("¿Eliminar esta sesión de la agenda?")) return;
+            state.sessions = state.sessions.filter(s => s.id !== id);
+            if (state.editingSessionId === id) cancelSessionEdit();
+            renderSessions();
+            saveData();
+        }
+
+        /* INFORME GLOBAL Y REGISTROS DEL CURSO */
+        function renderGlobalReport() {
+            const container = document.getElementById('reportPaper');
+            if(!container) return;
+
+            const groupStudents = state.students.filter(s => s.group === state.currentGroup);
+            const groupSessions = (state.sessions || []).filter(s => s.group === state.currentGroup);
+            groupSessions.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            let html = `
+                <div class="acta-header">
+                    <img src="https://lh3.googleusercontent.com/d/1xR4JzM_3429mXlv85a_EUth5PENzGN9H" alt="Logo I.E.S. Pérez Comendador" class="acta-logo-img" onerror="this.outerHTML='<div class=\\'acta-logo-text\\'>I.E.S. PÉREZ<br>COMENDADOR<br><span style=\\'font-size: 10px; font-weight: normal; color: #555;\\'>Plasencia</span></div>'">
+                    <div class="junta-box">JUNTA DE EXTREMADURA<br><span style="font-size: 9px; font-weight: normal;">Consejería de Educación</span></div>
+                </div>
+
+                <div class="acta-title">INFORME GLOBAL Y REGISTRO COMPLETO DE TUTORÍA</div>
+                <div style="text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase;">
+                    GRUPO: ${state.currentGroup} | TUTOR/A: ${document.getElementById('actaTutorInput').value}
+                </div>
+
+                <div class="acta-section-title">1. AGENDA Y LISTADO DE SESIONES DE TUTORÍA CELEBRADAS / PLANIFICADAS</div>
+            `;
+
+            if(groupSessions.length === 0) {
+                html += `<p style="font-size: 12px; color: #6b7280; font-style: italic;">No se han registrado sesiones en la agenda de este grupo.</p>`;
+            } else {
+                html += `
+                    <table class="acta-table">
+                        <thead>
+                            <tr>
+                                <th class="th-main" style="width: 15%;">Fecha</th>
+                                <th class="th-main" style="width: 35%;">Título de la Sesión</th>
+                                <th class="th-main">Orden del día / Acuerdos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                groupSessions.forEach(s => {
+                    const dateFmt = s.date ? new Date(s.date).toLocaleDateString() : 'Sin fecha';
+                    html += `
+                        <tr>
+                            <td><strong>${dateFmt}</strong></td>
+                            <td><strong>${s.title}</strong></td>
+                            <td style="white-space: pre-line;">${s.desc || '-'}</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table>`;
+            }
+
+            html += `<div class="acta-section-title" style="margin-top: 25px;">2. EXPEDIENTE INDIVIDUAL Y REGISTRO DE SEGUIMIENTO POR ALUMNO</div>`;
+
+            if(groupStudents.length === 0) {
+                html += `<p style="font-size: 12px; color: #6b7280; font-style: italic;">No hay alumnos registrados en este grupo.</p>`;
+            } else {
+                groupStudents.forEach((stu, idx) => {
+                    html += `
+                        <div style="margin-bottom: 18px; border: 1px solid #d1d5db; padding: 12px; border-radius: 4px; page-break-inside: avoid; background: #fafafa;">
+                            <div style="font-size: 13px; font-weight: bold; background: #e5e7eb; padding: 4px 8px; border-radius: 2px; color: #111827; display: flex; justify-content: space-between;">
+                                <span>${idx + 1}. ${stu.name}</span>
+                                <span>${stu.exp ? `Exp: ${stu.exp}` : ''}</span>
+                            </div>
+                            <div style="font-size: 11px; margin: 6px 0; color: #374151;">
+                                <strong>Bilingüe:</strong> ${stu.bilingue} | <strong>Optativa:</strong> ${stu.optativa} ${stu.neae ? `| <strong>NEAE:</strong> ${stu.neae}` : ''}
+                            </div>
+                            ${stu.observaciones ? `<div style="font-size: 11px; margin-bottom: 6px; color: #4b5563;"><strong>Observaciones del Tutor:</strong> ${stu.observaciones}</div>` : ''}
+
+                            <div style="font-size: 11px; font-weight: bold; margin-top: 6px; color: #15803d; border-bottom: 1px dashed #ccc; padding-bottom: 2px;">Seguimiento Académico:</div>
+                    `;
+
+                    if(!stu.academicProgress || stu.academicProgress.length === 0) {
+                        html += `<div style="font-size: 11px; color: #6b7280; font-style: italic; margin-top: 2px;">Sin registros académicos.</div>`;
+                    } else {
+                        html += `<ul style="margin: 4px 0 6px 16px; padding: 0; font-size: 11px;">`;
+                        stu.academicProgress.forEach(a => {
+                            html += `<li><strong>${a.eval}:</strong> ${a.suspensos} suspenso(s) (${a.asignaturas}) ${a.obs ? `- ${a.obs}` : ''}</li>`;
+                        });
+                        html += `</ul>`;
+                    }
+
+                    html += `<div style="font-size: 11px; font-weight: bold; margin-top: 6px; color: #b91c1c; border-bottom: 1px dashed #ccc; padding-bottom: 2px;">Historial de Entrevistas, Llamadas y Compromisos:</div>`;
+                    if(!stu.history || stu.history.length === 0) {
+                        html += `<div style="font-size: 11px; color: #6b7280; font-style: italic; margin-top: 2px;">Sin registros de entrevistas o apercibimientos.</div>`;
+                    } else {
+                        html += `<ul style="margin: 4px 0 2px 16px; padding: 0; font-size: 11px;">`;
+                        stu.history.forEach(h => {
+                            html += `<li><strong>[${h.date}] ${h.eval} (${h.tipo}):</strong> ${h.note}</li>`;
+                        });
+                        html += `</ul>`;
+                    }
+
+                    html += `</div>`;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        async function importRayuelaPDF(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusDiv = document.getElementById('pdfStatus');
+            statusDiv.innerText = "⏳ Escaneando documento PDF completo con fotos...";
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                let extractedStudents = [];
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    const viewport = page.getViewport({ scale: 2.0 });
+
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                    const items = textContent.items;
+
+                    let expAnchors = [];
+                    for (let i = 0; i < items.length; i++) {
+                        const str = items[i].str;
+                        if (/Nº\s*Exp/i.test(str)) {
+                            let expNum = str.replace(/.*Nº\s*Exp:?\s*/i, '').trim();
+                            if (!expNum && i + 1 < items.length) {
+                                expNum = items[i+1].str.replace(/[^\d]/g, '').trim();
+                            }
+
+                            const pdfX = items[i].transform[4];
+                            const pdfY = items[i].transform[5];
+
+                            let nameCandidates = items.filter(it => {
+                                const itX = it.transform[4];
+                                const itY = it.transform[5];
+                                const sameColumn = Math.abs(itX - pdfX) < 60;
+                                const isAbove = (itY > pdfY) && (itY < pdfY + 45);
+                                const isNotExp = !/Nº\s*Exp/i.test(it.str) && !/Pág/i.test(it.str) && !/Curso/i.test(it.str);
+                                return sameColumn && isAbove && it.str.trim().length > 0;
+                            });
+
+                            nameCandidates.sort((a,b) => b.transform[5] - a.transform[5]);
+                            let stuName = nameCandidates.map(c => c.str.trim()).join(' ').trim();
+
+                            if (!stuName && i > 0) {
+                                stuName = items[i-1].str.trim();
+                            }
+
+                            expAnchors.push({
+                                exp: expNum,
+                                name: stuName || "Alumno, " + (expAnchors.length + 1),
+                                pdfX: pdfX,
+                                pdfY: pdfY
+                            });
+                        }
+                    }
+
+                    expAnchors.sort((a,b) => {
+                        const rowDiff = Math.round(b.pdfY / 120) - Math.round(a.pdfY / 120);
+                        if (rowDiff !== 0) return rowDiff;
+                        return a.pdfX - b.pdfX;
+                    });
+
+                    expAnchors.forEach(anchor => {
+                        const anchorPt = viewport.convertToViewportPoint(anchor.pdfX, anchor.pdfY);
+                        const anchorX = anchorPt[0];
+                        const anchorY = anchorPt[1];
+
+                        const photoW = 125;
+                        const photoH = 150;
+                        const cropX = Math.max(0, anchorX - 15);
+                        const cropY = Math.max(0, anchorY - 215);
+
+                        const photoCanvas = document.createElement('canvas');
+                        photoCanvas.width = 120;
+                        photoCanvas.height = 144;
+                        const photoCtx = photoCanvas.getContext('2d');
+
+                        photoCtx.drawImage(
+                            canvas, 
+                            cropX, cropY, photoW, photoH, 
+                            0, 0, 120, 144
+                        );
+
+                        const photoBase64 = photoCanvas.toDataURL('image/jpeg', 0.85);
+
+                        extractedStudents.push({
+                            id: Date.now() + Math.random(),
+                            group: state.currentGroup,
+                            name: anchor.name,
+                            exp: anchor.exp,
+                            photo: photoBase64,
+                            bilingue: "No (🇪🇸)",
+                            optativa: "Francés (🇫🇷)",
+                            neae: "",
+                            observaciones: "",
+                            academicProgress: [],
+                            history: []
+                        });
+                    });
+                }
+
+                if (extractedStudents.length > 0) {
+                    state.students = state.students.filter(s => s.group !== state.currentGroup).concat(extractedStudents);
+                    state.activeStudentId = extractedStudents[0].id;
+
+                    renderGroupSelector();
+                    renderStudentsList();
+                    loadStudentData();
+                    calcActaStats();
+                    renderResumenCharts();
+                    saveData();
+
+                    statusDiv.innerText = `✅ ¡Extracción completada! ${extractedStudents.length} alumnos procesados en formato Apellidos, Nombre en "${state.currentGroup}".`;
+                } else {
+                    statusDiv.innerText = "⚠️ No se encontraron etiquetas de expediente en el PDF.";
+                }
+
+            } catch (err) {
+                console.error(err);
+                statusDiv.innerText = "❌ Error al procesar el PDF. Revisa el documento e inténtalo de nuevo.";
+            }
+        }
+
+        function exportiDoceoXLS() {
+            const groupStudents = state.students.filter(s => s.group === state.currentGroup);
+            if (groupStudents.length === 0) {
+                alert("No hay alumnos en el grupo actual para exportar.");
+                return;
+            }
+
+            let rows = '';
+            groupStudents.forEach(s => {
+                let apellidos = s.name || '';
+                let nombre = '';
+
+                if (s.name && s.name.includes(',')) {
+                    const parts = s.name.split(',');
+                    apellidos = parts[0].trim();
+                    nombre = parts.slice(1).join(',').trim();
+                }
+
+                rows += `<tr><td>${apellidos}</td><td>${nombre}</td></tr>`;
+            });
+
+            const xlsTemplate = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="UTF-8">
+                </head>
+                <body>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Apellidos</th>
+                                <th>Nombre</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([xlsTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `iDoceo_${state.currentGroup.replace(/\s+/g, '_')}.xls`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportGroupCSV() {
+            const groupStudents = state.students.filter(s => s.group === state.currentGroup);
+            if (groupStudents.length === 0) {
+                alert("No hay alumnos en el grupo actual para exportar.");
+                return;
+            }
+
+            let csvContent = "\uFEFFNombre,Expediente,Bilingue,Optativa,NEAE,Observaciones\n";
+            groupStudents.forEach(s => {
+                const name = `"${(s.name || '').replace(/"/g, '""')}"`;
+                const exp = `"${(s.exp || '').replace(/"/g, '""')}"`;
+                const bilingue = `"${(s.bilingue || '').replace(/"/g, '""')}"`;
+                const optativa = `"${(s.optativa || '').replace(/"/g, '""')}"`;
+                const neae = `"${(s.neae || '').replace(/"/g, '""')}"`;
+                const obs = `"${(s.observaciones || '').replace(/"/g, '""')}"`;
+                csvContent += `${name},${exp},${bilingue},${optativa},${neae},${obs}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Grupo_${state.currentGroup.replace(/\s+/g, '_')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function addAcademicRecord() {
+            const stu = state.students.find(s => String(s.id) === String(state.activeStudentId));
+            if(!stu) return;
+
+            const evalName = document.getElementById('acadEval').value;
+            const suspensos = parseInt(document.getElementById('acadSuspensos').value) || 0;
+            const asignaturas = document.getElementById('acadAsignaturas').value.trim();
+            const obs = document.getElementById('acadObs').value.trim();
+
+            if(!stu.academicProgress) stu.academicProgress = [];
+
+            const existingIdx = stu.academicProgress.findIndex(a => a.eval === evalName);
+            const recordData = {
+                id: Date.now(),
+                eval: evalName,
+                suspensos: suspensos,
+                asignaturas: asignaturas || (suspensos === 0 ? 'Ninguna' : 'Sin especificar'),
+                obs: obs
+            };
+
+            if(existingIdx >= 0) {
+                stu.academicProgress[existingIdx] = recordData;
+            } else {
+                stu.academicProgress.push(recordData);
+            }
+
+            document.getElementById('acadSuspensos').value = 0;
+            document.getElementById('acadAsignaturas').value = '';
+            document.getElementById('acadObs').value = '';
+
+            renderAcademicProgress(stu);
+            renderStudentsList();
+            renderResumenCharts();
+            saveData();
+        }
+
+        function editAcademicRecord(stuId, recordId) {
+            const stu = state.students.find(s => String(s.id) === String(stuId));
+            if (!stu || !stu.academicProgress) return;
+            const record = stu.academicProgress.find(a => a.id === recordId);
+            if (!record) return;
+
+            document.getElementById('acadEval').value = record.eval || "1ª Evaluación";
+            document.getElementById('acadSuspensos').value = record.suspensos || 0;
+            document.getElementById('acadAsignaturas').value = record.asignaturas || "";
+            document.getElementById('acadObs').value = record.obs || "";
+
+            window.scrollTo({ top: 250, behavior: 'smooth' });
+        }
+
+        function renderAcademicProgress(stu) {
+            const container = document.getElementById('academicHistoryList');
+            container.innerHTML = '';
+
+            if(!stu.academicProgress || stu.academicProgress.length === 0) {
+                container.innerHTML = '<div style="font-size:12px; color:#888;">No hay evaluaciones trimestrales registradas.</div>';
+                return;
+            }
+
+            const order = { "Evaluación 0": 0, "1ª Evaluación": 1, "2ª Evaluación": 2, "3ª Evaluación": 3 };
+            stu.academicProgress.sort((a,b) => (order[a.eval] ?? 9) - (order[b.eval] ?? 9));
+
+            stu.academicProgress.forEach(a => {
+                const statusColor = a.suspensos === 0 ? '#15803d' : '#b91c1c';
+                container.innerHTML += `
+                    <div class="acad-item">
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; margin-bottom:4px;">
+                            <span>${a.eval}</span>
+                            <span style="color:${statusColor};">${a.suspensos} Suspenso(s)</span>
+                        </div>
+                        <div style="font-size:12px; color:#374151;"><strong>Materias / Detalle:</strong> ${a.asignaturas}</div>
+                        ${a.obs ? `<div style="font-size:12px; color:#4b5563; margin-top:4px;"><strong>Comentario/Evolución:</strong> ${a.obs}</div>` : ''}
+                        <div style="margin-top:6px; display:flex; gap:12px;">
+                            <button style="font-size:11px; color:var(--purple); background:none; border:none; cursor:pointer; padding:0; font-weight:bold;" onclick="editAcademicRecord('${stu.id}', ${a.id})">✏️ Editar</button>
+                            <button style="font-size:11px; color:#ef4444; background:none; border:none; cursor:pointer; padding:0;" onclick="deleteAcademicRecord('${stu.id}', ${a.id})">🗑️ Eliminar</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function deleteAcademicRecord(stuId, recordId) {
+            const stu = state.students.find(s => String(s.id) === String(stuId));
+            if(!stu) return;
+            stu.academicProgress = stu.academicProgress.filter(a => a.id !== recordId);
+            renderAcademicProgress(stu);
+            renderStudentsList();
+            renderResumenCharts();
+            saveData();
+        }
+
+        function addStudent() {
+            const name = prompt("Apellidos, Nombre del Alumno:");
+            if(!name) return;
+            const newStu = {
+                id: Date.now(),
+                group: state.currentGroup,
+                name: name,
+                exp: '',
+                photo: '',
+                bilingue: "No (🇪🇸)",
+                optativa: "Francés (🇫🇷)",
+                neae: "",
+                observaciones: "",
+                academicProgress: [],
+                history: []
+            };
+            state.students.push(newStu);
+            state.activeStudentId = newStu.id;
+            renderStudentsList();
+            loadStudentData();
+            calcActaStats();
+            renderResumenCharts();
+            saveData();
+        }
+
+        function deleteStudent() {
+            if(!confirm("¿Seguro que deseas eliminar este alumno?")) return;
+            state.students = state.students.filter(s => String(s.id) !== String(state.activeStudentId));
+            const remaining = state.students.filter(s => s.group === state.currentGroup);
+            if(remaining.length > 0) state.activeStudentId = remaining[0].id;
+            renderStudentsList();
+            loadStudentData();
+            calcActaStats();
+            renderResumenCharts();
+            saveData();
+        }
+
+        function addIncidence() {
+            const stu = state.students.find(s => String(s.id) === String(state.activeStudentId));
+            if(!stu) return;
+
+            const note = document.getElementById('incNote').value;
+            if(!note || note.trim() === "") return alert("Escribe el detalle de la nota o acuerdo.");
+
+            if(!stu.history) stu.history = [];
+            
+            stu.history.push({
+                id: Date.now(),
+                eval: document.getElementById('incEval').value,
+                tipo: document.getElementById('incTipo').value,
+                note: note,
+                date: new Date().toLocaleDateString()
+            });
+
+            document.getElementById('incNote').value = '';
+            renderHistory(stu);
+            renderStudentsList();
+            saveData();
+        }
+
+        function renderHistory(stu) {
+            const container = document.getElementById('historyList');
+            container.innerHTML = '';
+            if(!stu.history || stu.history.length === 0) {
+                container.innerHTML = '<div style="font-size:12px; color:#888;">No hay anotaciones asociadas a este alumno.</div>';
+                return;
+            }
+            stu.history.forEach(h => {
+                container.innerHTML += `
+                    <div class="history-item">
+                        <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                            <span>${h.eval} - ${h.tipo}</span>
+                            <span style="font-size:11px; color:#666;">${h.date}</span>
+                        </div>
+                        <div style="margin-top:4px;">${h.note}</div>
+                        <button style="margin-top:4px; font-size:10px; color:red; background:none; border:none; cursor:pointer;" onclick="deleteIncidence('${stu.id}', ${h.id})">Eliminar</button>
+                    </div>
+                `;
+            });
+        }
+
+        function deleteIncidence(stuId, incId) {
+            const stu = state.students.find(s => String(s.id) === String(stuId));
+            if(!stu) return;
+            stu.history = stu.history.filter(h => h.id !== incId);
+            renderHistory(stu);
+            renderStudentsList();
+            saveData();
+        }
+
+        function syncTutorFromTable(val) {
+            document.getElementById('actaTutorNameInput').value = val;
+        }
+
+        function syncTutorFromSig(val) {
+            document.getElementById('actaTutorInput').value = val;
+        }
+
+        function calcActaStats() {
+            const aprob = parseInt(document.getElementById('actaAprob').value) || 0;
+            const s1 = parseInt(document.getElementById('actaSusp1').value) || 0;
+            const s2 = parseInt(document.getElementById('actaSusp2').value) || 0;
+            const s3 = parseInt(document.getElementById('actaSusp3').value) || 0;
+            const sM = parseInt(document.getElementById('actaSuspMas').value) || 0;
+
+            const total = aprob + s1 + s2 + s3 + sM;
+            document.getElementById('actaTotal').innerText = total;
+
+            if(total > 0) {
+                document.getElementById('pctAprob').innerText = Math.round((aprob / total) * 100) + '%';
+                document.getElementById('pctSusp1').innerText = Math.round((s1 / total) * 100) + '%';
+                document.getElementById('pctSusp2').innerText = Math.round((s2 / total) * 100) + '%';
+                document.getElementById('pctSusp3').innerText = Math.round((s3 / total) * 100) + '%';
+                document.getElementById('pctSuspMas').innerText = Math.round((sM / total) * 100) + '%';
+            }
+        }
+
+        function syncActaData() {
+            const groupStudents = state.students.filter(s => s.group === state.currentGroup);
+            
+            let aprobados = 0, susp1 = 0, susp2 = 0, susp3 = 0, suspMas = 0;
+
+            groupStudents.forEach(stu => {
+                if(!stu.academicProgress || stu.academicProgress.length === 0) {
+                    aprobados++;
+                } else {
+                    const lastEval = stu.academicProgress[stu.academicProgress.length - 1];
+                    const num = lastEval.suspensos;
+                    if(num === 0) aprobados++;
+                    else if(num === 1) susp1++;
+                    else if(num === 2) susp2++;
+                    else if(num === 3) susp3++;
+                    else suspMas++;
+                }
+            });
+
+            document.getElementById('actaAprob').value = aprobados;
+            document.getElementById('actaSusp1').value = susp1;
+            document.getElementById('actaSusp2').value = susp2;
+            document.getElementById('actaSusp3').value = susp3;
+            document.getElementById('actaSuspMas').value = suspMas;
+            calcActaStats();
+            alert(`Sincronizadas las calificaciones de ${groupStudents.length} alumnos del grupo ${state.currentGroup}.`);
+        }
+
+        function copyStudentPrompt() {
+            const stu = state.students.find(s => String(s.id) === String(state.activeStudentId));
+            if(!stu) return;
+
+            let acadText = "";
+            if(stu.academicProgress && stu.academicProgress.length > 0) {
+                stu.academicProgress.forEach(a => {
+                    acadText += `\n  - [${a.eval}] Suspensos: ${a.suspensos} | Asignaturas: ${a.asignaturas} | Comentario: ${a.obs || 'Sin comentarios'}`;
+                });
+            } else {
+                acadText = "\n  - Sin evaluaciones registradas aún.";
+            }
+
+            let historyText = "";
+            if(stu.history && stu.history.length > 0) {
+                stu.history.forEach(h => {
+                    historyText += `\n  - [${h.date}] (${h.eval} - ${h.tipo}): ${h.note}`;
+                });
+            } else {
+                historyText = "\n  - Sin anotaciones o entrevistas registradas.";
+            }
+
+            const promptFull = `================================================
+FICHA Y SEGUIMIENTO COMPLETO DEL ALUMNO/A
+================================================
+• Apellidos, Nombre: ${stu.name}
+• Nº Expediente Rayuela: ${stu.exp || 'Sin registrar'}
+• Grupo / Curso: ${stu.group}
+• Bilingüismo: ${stu.bilingue || 'No'}
+• Asignatura Optativa: ${stu.optativa || 'Sin optativa'}
+• Necesidades Educativas / NEAE: ${stu.neae ? stu.neae.replace(/\n/g, ', ') : 'Ninguna'}
+• Observaciones Generales del Tutor: ${stu.observaciones || 'Sin observaciones'}
+
+------------------------------------------------
+HISTORIAL Y EVOLUCIÓN ACADÉMICA POR TRIMESTRE:
+------------------------------------------------${acadText}
+
+------------------------------------------------
+HISTORIAL DE INCIDENCIAS, ENTREVISTAS Y ACUERDOS:
+------------------------------------------------${historyText}
+================================================`;
+
+            navigator.clipboard.writeText(promptFull);
+            alert("Prompt COMPLETO del alumno copiado al portapapeles.");
+        }
+
+        function copyGroupPrompt() {
+            const groupStudents = state.students.filter(s => s.group === state.currentGroup);
+            let text = `RESUMEN COMPLETO DEL GRUPO ${state.currentGroup}:\n`;
+            groupStudents.forEach(s => {
+                text += `\n- ${s.name} (Exp: ${s.exp || 'N/A'}) | Bilingüe: ${s.bilingue} | Optativa: ${s.optativa} | NEAE: ${s.neae ? s.neae.replace(/\n/g, ', ') : 'Ninguna'}`;
+            });
+            navigator.clipboard.writeText(text);
+            alert("Prompt completo del grupo copiado al portapapeles.");
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `tutoria_backup_${state.currentGroup}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    state = JSON.parse(evt.target.result);
+                    renderGroupSelector();
+                    renderStudentsList();
+                    loadStudentData();
+                    renderSessions();
+                    calcActaStats();
+                    updateActaTitle();
+                    renderResumenCharts();
+                    await saveData();
+                    alert("Copia de seguridad cargada correctamente.");
+                } catch(err) {
+                    alert("Error al leer el archivo JSON.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function createNewGroup() {
+            const name = document.getElementById('newGroupName').value.trim();
+            if(!name) return alert("Escribe un nombre para el grupo.");
+            if(!state.groups.includes(name)) {
+                state.groups.push(name);
+                state.currentGroup = name;
+                renderGroupSelector();
+                renderStudentsList();
+                renderSessions();
+                renderResumenCharts();
+                saveData();
+                document.getElementById('newGroupName').value = '';
+            }
+        }
+
+        function deleteCurrentGroup() {
+            if(state.groups.length <= 1) return alert("Debes mantener al menos un grupo.");
+            if(!confirm(`¿Eliminar el grupo ${state.currentGroup} y sus alumnos?`)) return;
+
+            state.students = state.students.filter(s => s.group !== state.currentGroup);
+            if(state.sessions) state.sessions = state.sessions.filter(s => s.group !== state.currentGroup);
+            state.groups = state.groups.filter(g => g !== state.currentGroup);
+            state.currentGroup = state.groups[0];
+            renderGroupSelector();
+            renderStudentsList();
+            renderSessions();
+            renderResumenCharts();
+            saveData();
+        }
+    </script>
+</body>
+</html>
